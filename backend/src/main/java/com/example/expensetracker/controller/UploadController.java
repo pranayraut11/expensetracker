@@ -12,7 +12,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/upload")
-@CrossOrigin(origins = "*")
 public class UploadController {
 
     private static final Logger logger = LoggerFactory.getLogger(UploadController.class);

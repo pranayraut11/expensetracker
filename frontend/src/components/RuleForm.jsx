@@ -225,8 +225,7 @@ export default function RuleForm({ initialValues, onSubmit, onCancel }) {
         >
           Save Rule
         </button>
-      </div>
+</div>
     </form>
   );
 }
-

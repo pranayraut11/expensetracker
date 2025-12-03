@@ -422,14 +422,7 @@ public class TransactionService {
         int count = 0;
 
         for (Transaction transaction : allTransactions) {
-            String oldCategory = transaction.getCategory();
-            dynamicDroolsService.applyRules(transaction);
-            String newCategory = transaction.getCategory();
-
-            if (newCategory != null && !newCategory.equals(oldCategory)) {
-                transactionRepository.save(transaction);
-                count++;
-            }
+            count = count + dynamicDroolsService.applyRules(transaction);
         }
 
         logger.info("Recategorized {} transactions", count);
