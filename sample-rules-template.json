@@ -1,0 +1,164 @@
+[
+  {
+    "ruleName": "Food_Swiggy",
+    "categoryName": "Food",
+    "pattern": "(swiggy|swgy)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Food_Zomato",
+    "categoryName": "Food",
+    "pattern": "(zomato|zmto)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Food_Restaurants",
+    "categoryName": "Food",
+    "pattern": "(dominos|kfc|mcdonalds|mcd|pizza hut|subway|starbucks|cafe|restaurant)",
+    "priority": 9,
+    "enabled": true
+  },
+  {
+    "ruleName": "Groceries_DMart",
+    "categoryName": "Groceries",
+    "pattern": "(dmart|d mart)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Groceries_BigBasket",
+    "categoryName": "Groceries",
+    "pattern": "(bigbasket|big basket|bb)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Groceries_Online",
+    "categoryName": "Groceries",
+    "pattern": "(grofers|blinkit|zepto|dunzo|instamart)",
+    "priority": 9,
+    "enabled": true
+  },
+  {
+    "ruleName": "Shopping_Amazon",
+    "categoryName": "Shopping",
+    "pattern": "(amazon|amzn|amz)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Shopping_Flipkart",
+    "categoryName": "Shopping",
+    "pattern": "(flipkart|fkrt)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Shopping_Fashion",
+    "categoryName": "Shopping",
+    "pattern": "(myntra|ajio|nykaa|tatacliq)",
+    "priority": 9,
+    "enabled": true
+  },
+  {
+    "ruleName": "Travel_Uber",
+    "categoryName": "Travel",
+    "pattern": "(uber)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Travel_Ola",
+    "categoryName": "Travel",
+    "pattern": "(ola|ola cabs)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Travel_Transport",
+    "categoryName": "Travel",
+    "pattern": "(rapido|metro|irctc|redbus|makemytrip|goibibo|train|flight)",
+    "priority": 9,
+    "enabled": true
+  },
+  {
+    "ruleName": "Fuel_Petrol",
+    "categoryName": "Fuel",
+    "pattern": "(petrol|diesel|hpcl|bpcl|iocl|shell|essar)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Bills_Mobile",
+    "categoryName": "Bills",
+    "pattern": "(airtel|jio|vodafone|vi|idea|bsnl|recharge|prepaid|postpaid)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Bills_Utilities",
+    "categoryName": "Bills",
+    "pattern": "(electricity|water bill|gas bill|broadband|internet)",
+    "priority": 9,
+    "enabled": true
+  },
+  {
+    "ruleName": "Medical_Pharmacy",
+    "categoryName": "Medical",
+    "pattern": "(apollo pharmacy|medplus|netmeds|pharmeasy|1mg)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Medical_Hospital",
+    "categoryName": "Medical",
+    "pattern": "(hospital|clinic|doctor|medical|health)",
+    "priority": 9,
+    "enabled": true
+  },
+  {
+    "ruleName": "Entertainment_OTT",
+    "categoryName": "Entertainment",
+    "pattern": "(netflix|hotstar|prime video|sonyliv|zee5|voot|disney)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Entertainment_Gaming",
+    "categoryName": "Entertainment",
+    "pattern": "(steam|playstation|xbox|google play|app store)",
+    "priority": 9,
+    "enabled": true
+  },
+  {
+    "ruleName": "Rent_Payment",
+    "categoryName": "Rent",
+    "pattern": "(rent|lease)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Income_Salary",
+    "categoryName": "Income",
+    "pattern": "(salary|credited|neft cr|imps cr|ach cr|rtgs cr)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "ATM_Withdrawal",
+    "categoryName": "ATM Withdrawals",
+    "pattern": "(atm|cash withdrawal|atm wdl)",
+    "priority": 10,
+    "enabled": true
+  },
+  {
+    "ruleName": "Transfer_UPI",
+    "categoryName": "Transfers",
+    "pattern": "(upi transfer|neft|imps|rtgs|fund transfer)",
+    "priority": 8,
+    "enabled": true
+  }
+]
+
