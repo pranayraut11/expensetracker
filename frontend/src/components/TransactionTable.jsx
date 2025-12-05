@@ -1,14 +1,18 @@
 import React, { useState } from 'react'
 import { updateTransactionCategory } from '../services/transactionApi'
 import { CATEGORIES } from '../constants/categories'
+import AddRuleModal from './AddRuleModal'
 
 const TransactionTable = ({ transactions, onCategoryChanged, onSort, sortField, sortDirection }) => {
   const [editingId, setEditingId] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
+  const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
+  const [selectedTransaction, setSelectedTransaction] = useState(null)
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-IN', {
+  const formatDate = (date) => {
+    if (!date) return '—'
+    const dateObj = new Date(date)
+    return dateObj.toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -66,15 +70,15 @@ const TransactionTable = ({ transactions, onCategoryChanged, onSort, sortField, 
 
     return (
       <th
-        onClick={() => onSort && onSort(field)}
-        className={`px-6 py-3 text-${align} text-xs font-medium uppercase tracking-wider cursor-pointer hover:bg-gray-100 transition-colors select-none ${
-          isActive ? 'text-indigo-700 bg-indigo-50' : 'text-gray-500'
+        className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
+          align === 'right' ? 'text-right' : 'text-left'
         }`}
+        onClick={() => onSort && onSort(field)}
       >
-        <div className={`flex items-center gap-2 ${align === 'right' ? 'justify-end' : ''}`}>
+        <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
           <span>{label}</span>
           {onSort && (
-            <span className="flex flex-col">
+            <span className="flex-shrink-0">
               {isActive ? (
                 // Show active arrow
                 isAsc ? (
@@ -97,6 +101,19 @@ const TransactionTable = ({ transactions, onCategoryChanged, onSort, sortField, 
         </div>
       </th>
     )
+  }
+
+  const handleAddRule = (transaction) => {
+    setSelectedTransaction(transaction)
+    setIsRuleModalOpen(true)
+  }
+
+  const handleRuleCreated = () => {
+    // Optionally refresh transactions or show success message
+    if (onCategoryChanged) {
+      // Trigger a refresh of transactions
+      onCategoryChanged(null)
+    }
   }
 
   if (!transactions || transactions.length === 0) {
@@ -214,23 +231,48 @@ const TransactionTable = ({ transactions, onCategoryChanged, onSort, sortField, 
                   }) || '—'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
-                  {editingId !== transaction.id && (
-                    <button
-                      onClick={() => setEditingId(transaction.id)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      Edit
-                    </button>
-                  )}
+                  <div className="flex justify-end space-x-2">
+                    {editingId !== transaction.id && (
+                      <>
+                        <button
+                          onClick={() => setEditingId(transaction.id)}
+                          className="text-indigo-600 hover:text-indigo-900"
+                          title="Edit category"
+                        >
+                          Edit
+                        </button>
+                        <span className="text-gray-300">|</span>
+                        <button
+                          onClick={() => handleAddRule(transaction)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Add rule from this transaction"
+                        >
+                          Add Rule
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Add Rule Modal */}
+      {isRuleModalOpen && selectedTransaction && (
+        <AddRuleModal
+          isOpen={isRuleModalOpen}
+          onClose={() => {
+            setIsRuleModalOpen(false)
+            setSelectedTransaction(null)
+          }}
+          transaction={selectedTransaction}
+          onRuleCreated={handleRuleCreated}
+        />
+      )}
     </div>
   )
 }
 
 export default TransactionTable
-

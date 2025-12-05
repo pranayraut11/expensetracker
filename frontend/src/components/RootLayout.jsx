@@ -16,6 +16,7 @@ export default function RootLayout() {
               <Link to="/upload-credit-card" className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">Upload CC</Link>
               <Link to="/transactions" className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">Transactions</Link>
               <Link to="/rules" className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">Rules</Link>
+              <Link to="/settings" className="px-4 py-2 rounded-md text-sm font-medium text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">Settings</Link>
             </div>
           </div>
         </div>

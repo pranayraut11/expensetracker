@@ -6,6 +6,7 @@ import CreditCardUploadPage from "./pages/CreditCardUploadPage";
 import TransactionsPage from "./pages/TransactionsPage";
 import RuleListPage from "./pages/RuleListPage";
 import RuleFormPage from "./pages/RuleFormPage";
+import SettingsPage from "./pages/SettingsPage";
 
 const router = createBrowserRouter([
   {
@@ -19,6 +20,7 @@ const router = createBrowserRouter([
       { path: "rules", element: <RuleListPage /> },
       { path: "rules/new", element: <RuleFormPage mode="create" /> },
       { path: "rules/:id", element: <RuleFormPage mode="edit" /> },
+      { path: "settings", element: <SettingsPage /> },
     ],
   },
 ]);
