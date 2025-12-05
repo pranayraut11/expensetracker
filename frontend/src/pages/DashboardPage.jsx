@@ -10,6 +10,7 @@ import IncomeExpenseTrendChart from '../components/IncomeExpenseTrendChart'
 import TrendFilter from '../components/TrendFilter'
 import CategoryExpenseChart from '../components/CategoryExpenseChart'
 import CategoryMonthSelector from '../components/CategoryMonthSelector'
+import AverageCategoryWidget from '../components/AverageCategoryWidget'
 
 const DashboardPage = () => {
   const [summary, setSummary] = useState(null)
@@ -268,6 +269,11 @@ const DashboardPage = () => {
                 selectedMonth={categorySelectedMonth}
               />
             )}
+          </div>
+
+          {/* Average Monthly Category Widget */}
+          <div className="space-y-4">
+            <AverageCategoryWidget />
           </div>
         </>
       )}
