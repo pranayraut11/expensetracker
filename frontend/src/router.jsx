@@ -7,6 +7,7 @@ import TransactionsPage from "./pages/TransactionsPage";
 import RuleListPage from "./pages/RuleListPage";
 import RuleFormPage from "./pages/RuleFormPage";
 import SettingsPage from "./pages/SettingsPage";
+import CategorySettingsPage from "./pages/CategorySettingsPage";
 
 const router = createBrowserRouter([
   {
@@ -21,9 +22,9 @@ const router = createBrowserRouter([
       { path: "rules/new", element: <RuleFormPage mode="create" /> },
       { path: "rules/:id", element: <RuleFormPage mode="edit" /> },
       { path: "settings", element: <SettingsPage /> },
+      { path: "settings/categories", element: <CategorySettingsPage /> },
     ],
   },
 ]);
 
 export default router;
-

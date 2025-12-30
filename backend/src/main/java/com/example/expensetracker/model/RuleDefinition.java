@@ -35,6 +35,9 @@ public class RuleDefinition {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column(nullable = false, length = 10)
+    private String transactionType = "ANY"; // ANY, CREDIT, DEBIT
+
     @PrePersist
     public void prePersist() {
         LocalDateTime now = LocalDateTime.now();
@@ -66,5 +69,6 @@ public class RuleDefinition {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public String getTransactionType() { return transactionType; }
+    public void setTransactionType(String transactionType) { this.transactionType = transactionType; }
 }
-

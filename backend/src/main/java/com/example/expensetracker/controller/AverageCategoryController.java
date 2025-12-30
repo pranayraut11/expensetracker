@@ -29,7 +29,7 @@ public class AverageCategoryController {
     public ResponseEntity<List<AverageCategoryDto>> getAverageCategoryData(
             @RequestParam(required = false) Integer year,
             @RequestParam(required = false, defaultValue = "12") Integer months) {
-
+        
         List<AverageCategoryDto> data = averageCategoryService.calculateAverageByCategory(year, months);
         return ResponseEntity.ok(data);
     }

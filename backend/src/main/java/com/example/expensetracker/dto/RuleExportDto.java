@@ -14,5 +14,5 @@ public class RuleExportDto {
     private Integer priority;
     private Boolean enabled;
     private Boolean includeInTotals;
+    private String transactionType; // ANY, CREDIT, DEBIT
 }
-

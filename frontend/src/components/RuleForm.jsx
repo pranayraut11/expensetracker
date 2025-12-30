@@ -1,6 +1,6 @@
 import React from "react";
 import { getTags } from "../services/transactionApi";
-import { CATEGORIES } from "../constants/categories";
+import { useCategories } from "../context/CategoryContext";
 
 const regexExamples = [
   { label: "Exact match (case insensitive)", example: "swiggy" },
@@ -12,14 +12,15 @@ const regexExamples = [
 ];
 
 export default function RuleForm({ initialValues, onSubmit, onCancel }) {
-  const [form, setForm] = React.useState(initialValues);
+  const { categories, loading: categoriesLoading } = useCategories()
+  const [form, setForm] = React.useState(initialValues || {});
   const [tags, setTags] = React.useState([]);
   const [showExamples, setShowExamples] = React.useState(false);
   const [tagSearch, setTagSearch] = React.useState("");
   const [isLoadingTags, setIsLoadingTags] = React.useState(false);
 
   React.useEffect(() => {
-    setForm(initialValues);
+    setForm(initialValues || {});
   }, [initialValues]);
 
   // Load tags with debouncing for search
@@ -84,11 +85,12 @@ export default function RuleForm({ initialValues, onSubmit, onCancel }) {
           onChange={handleChange}
           required
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+          disabled={categoriesLoading}
         >
           <option value="">-- Select Category --</option>
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.name}>
+              {cat.name}
             </option>
           ))}
         </select>
@@ -186,6 +188,23 @@ export default function RuleForm({ initialValues, onSubmit, onCancel }) {
         </p>
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-gray-700">Transaction Type</label>
+        <select
+          name="transactionType"
+          value={form.transactionType || "ANY"}
+          onChange={handleChange}
+          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
+        >
+          <option value="ANY">Any</option>
+          <option value="CREDIT">Credit</option>
+          <option value="DEBIT">Debit</option>
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          Optional: Restrict this rule to only Credit or Debit transactions. Use "Any" to apply regardless of type.
+        </p>
+      </div>
+
       <div className="flex items-center">
         <input
           type="checkbox"
@@ -225,7 +244,7 @@ export default function RuleForm({ initialValues, onSubmit, onCancel }) {
         >
           Save Rule
         </button>
-</div>
+      </div>
     </form>
   );
 }

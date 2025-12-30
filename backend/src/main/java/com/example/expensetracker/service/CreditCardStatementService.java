@@ -40,7 +40,7 @@ public class CreditCardStatementService {
         logger.info("Parsed {} credit card transactions", rowsProcessed);
 
         // Save transactions with duplicate detection
-        TransactionSaveResult saveResult = transactionService.saveAllWithDuplicateCheck(transactions);
+        TransactionSaveResult saveResult = transactionService.saveTransactions(transactions);
         int rowsSaved = saveResult.getSavedTransactions().size();
         int duplicates = saveResult.getDuplicateTransactions().size();
         int errors = rowsProcessed - rowsSaved - duplicates;

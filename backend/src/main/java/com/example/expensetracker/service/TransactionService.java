@@ -9,11 +9,8 @@ import com.example.expensetracker.model.Transaction;
 import com.example.expensetracker.repository.TagRepository;
 import com.example.expensetracker.repository.TransactionRepository;
 import com.example.expensetracker.specification.TransactionSpecification;
-import com.example.expensetracker.util.DescriptionCleaner;
 import com.example.expensetracker.util.MerchantNormalizer;
 import com.example.expensetracker.util.TransactionHashUtil;
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -43,9 +40,7 @@ public class TransactionService {
     private final MerchantNormalizer merchantNormalizer;
     private final TagExtractionService tagExtractorService;
     private final TagRepository tagRepository;
-
-    @PersistenceContext
-    private EntityManager entityManager;
+    private SalaryCycleService salaryCycleService;
 
     @Autowired
     public TransactionService(TransactionRepository transactionRepository,
@@ -61,14 +56,20 @@ public class TransactionService {
     }
 
     /**
-     * Save a list of transactions with duplicate detection
-     * Returns saved transactions and list of duplicates
-     * This method is non-transactional and delegates to transactional method per item
+    /**
+     * Set salary cycle service (avoid circular dependency with setter injection)
      */
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    public TransactionSaveResult saveAllWithDuplicateCheck(List<Transaction> transactions) {
-        TransactionSaveResult result = new TransactionSaveResult();
+    @Autowired(required = false)
+    public void setSalaryCycleService(SalaryCycleService salaryCycleService) {
+        this.salaryCycleService = salaryCycleService;
+    }
 
+    /**
+     * Save a batch of transactions (fixed: removed duplicate/invalid code)
+     */
+    @Transactional
+    public TransactionSaveResult saveTransactions(List<Transaction> transactions) {
+        TransactionSaveResult result = new TransactionSaveResult();
         for (Transaction transaction : transactions) {
             // Generate transaction hash if not already set (for bank statements)
             if (transaction.getTransactionHash() == null || transaction.getTransactionHash().isEmpty()) {
@@ -102,13 +103,13 @@ public class TransactionService {
             } catch (Exception e) {
                 // Check if it's a duplicate or other error
                 if (e instanceof DataIntegrityViolationException ||
-                    e.getCause() instanceof DataIntegrityViolationException ||
+                    (e.getCause() instanceof DataIntegrityViolationException) ||
                     (e.getMessage() != null && e.getMessage().contains("constraint"))) {
                     // Duplicate detected - hash constraint violation
                     String duplicateInfo = String.format(
                         "Date: %s, Description: %s, Amount: %.2f, Type: %s",
                         transaction.getDate(),
-                        transaction.getDescription().length() > 50
+                        transaction.getDescription() != null && transaction.getDescription().length() > 50
                             ? transaction.getDescription().substring(0, 50) + "..."
                             : transaction.getDescription(),
                         transaction.getAmount(),
@@ -133,51 +134,24 @@ public class TransactionService {
             saveTags(result.getSavedTransactions());
         }
 
+        // Optionally trigger salary cycle detection for new income transactions
+        try {
+            if (salaryCycleService != null) {
+                salaryCycleService.detectAndCreateSalaryCycles();
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to detect salary cycles: {}", e.getMessage());
+        }
+
         return result;
     }
 
     /**
-     * Save a single transaction in its own transaction
-     * Each call runs in a new transaction, isolated from others
+     * Save a single transaction in its own transaction (fixed: method was missing)
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Transaction saveTransactionIndividually(Transaction transaction) {
         return transactionRepository.save(transaction);
-    }
-
-    /**
-     * Save a list of transactions
-     */
-    @Transactional
-    public List<Transaction> saveAll(List<Transaction> transactions) {
-        // Generate hash for each transaction
-        for (Transaction transaction : transactions) {
-            if (transaction.getTransactionHash() == null || transaction.getTransactionHash().isEmpty()) {
-                String hash = TransactionHashUtil.generateHash(
-                    transaction.getDescription(),
-                    transaction.getRefNo(),
-                    transaction.getDate(),
-                    transaction.getAmount(),
-                    transaction.getType()
-                );
-                transaction.setTransactionHash(hash);
-            }
-
-            // Ensure default values
-            if (transaction.getIsCreditCardTransaction() == null) {
-                transaction.setIsCreditCardTransaction(false);
-            }
-            if (transaction.getIsCreditCardPayment() == null) {
-                transaction.setIsCreditCardPayment(false);
-            }
-            if (transaction.getIncludeInTotals() == null) {
-                transaction.setIncludeInTotals(true);
-            }
-        }
-
-        List<Transaction> saved = transactionRepository.saveAll(transactions);
-        saveTags(saved);
-        return saved;
     }
 
     /**
@@ -194,7 +168,7 @@ public class TransactionService {
     }
 
     /**
-     * Get transactions with pagination, filtering, and sorting
+     * Get transactions with pagination, filtering, and multi-column sorting
      */
     @Transactional(readOnly = true)
     public PagedTransactionResponse getTransactionsPageable(
@@ -202,6 +176,7 @@ public class TransactionService {
             int size,
             String sortField,
             String sortDirection,
+            List<String[]> sortParams,
             String search,
             String category,
             String type,
@@ -209,11 +184,33 @@ public class TransactionService {
             LocalDate fromDate,
             LocalDate toDate) {
 
-        // Build sort
-        Sort.Direction direction = "asc".equalsIgnoreCase(sortDirection)
-            ? Sort.Direction.ASC
-            : Sort.Direction.DESC;
-        Sort sort = Sort.by(direction, sortField);
+        // Build multi-column sort
+        Sort sort;
+        if (sortParams != null && sortParams.size() > 1) {
+            // Multiple sort columns
+            List<Sort.Order> orders = new java.util.ArrayList<>();
+            for (String[] sortParam : sortParams) {
+                if (sortParam.length >= 1) {
+                    String field = mapSortField(sortParam[0].trim());
+                    String direction = sortParam.length > 1 ? sortParam[1].trim() : "desc";
+                    System.out.println("DEBUG Multi-sort: field=" + field + ", direction=" + direction + ", length=" + sortParam.length);
+                    Sort.Direction dir = "asc".equalsIgnoreCase(direction)
+                        ? Sort.Direction.ASC
+                        : Sort.Direction.DESC;
+                    System.out.println("DEBUG Multi-sort: Resolved to Sort.Direction." + dir);
+                    orders.add(new Sort.Order(dir, field));
+                }
+            }
+            sort = Sort.by(orders);
+        } else {
+            // Single sort column (backward compatibility)
+            System.out.println("DEBUG Single-sort: sortDirection=" + sortDirection + ", trimmed=" + sortDirection.trim());
+            Sort.Direction direction = "asc".equalsIgnoreCase(sortDirection.trim())
+                ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
+            System.out.println("DEBUG Single-sort: Resolved to Sort.Direction." + direction);
+            sort = Sort.by(direction, sortField);
+        }
 
         // Create pageable
         Pageable pageable = PageRequest.of(page, size, sort);
@@ -229,7 +226,7 @@ public class TransactionService {
         // Convert to DTOs
         List<TransactionDto> dtos = transactionPage.getContent().stream()
                 .map(this::convertToDto)
-                .collect(Collectors.toList());
+                .toList();
 
         // Build response
         return new PagedTransactionResponse(
@@ -239,6 +236,20 @@ public class TransactionService {
             transactionPage.getNumber(),
             transactionPage.getSize()
         );
+    }
+
+    /**
+     * Map frontend sort field names to entity field names
+     */
+    private String mapSortField(String field) {
+        return switch (field.toLowerCase()) {
+            case "date" -> "date";
+            case "amount" -> "amount";
+            case "category", "categoryname" -> "category";
+            case "description" -> "description";
+            case "type" -> "type";
+            default -> "date"; // default fallback
+        };
     }
 
     /**
@@ -316,7 +327,7 @@ public class TransactionService {
         return transactionRepository.findAll().stream()
                 .map(this::convertToDto)
                 .sorted(Comparator.comparing(TransactionDto::getDate).reversed())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -341,7 +352,7 @@ public class TransactionService {
         return transactions.stream()
                 .map(this::convertToDto)
                 .sorted(Comparator.comparing(TransactionDto::getDate).reversed())
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -362,7 +373,7 @@ public class TransactionService {
         return suggestions.stream()
                 .sorted(Comparator.comparingLong(TagSuggestionDto::getCount).reversed())
                 .limit(limit)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -383,11 +394,10 @@ public class TransactionService {
                         .tag(t.getTagName())
                         .count(t.getUsageCount())
                         .build())
-                .sorted(Comparator.comparingLong(TagSuggestionDto::getCount).reversed())
-                .collect(Collectors.toList());
+                .toList();
 
         if (limit != null && limit > 0) {
-            return suggestions.stream().limit(limit).collect(Collectors.toList());
+            return suggestions.stream().limit(limit).toList();
         }
 
         return suggestions;

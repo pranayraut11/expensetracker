@@ -21,8 +21,9 @@ export const getSummary = async () => {
  * @param {Object} options - Query options
  * @param {number} options.page - Page number (0-based, default 0)
  * @param {number} options.size - Page size (default 20)
- * @param {string} options.sort - Sort field and direction (default "date,desc")
+ * @param {string|string[]} options.sort - Sort field(s) and direction (default "date,desc")
  *                                Format: "field,direction" e.g. "date,desc", "amount,asc"
+ *                                Or array for multi-sort: ["type,asc", "category,asc", "date,desc"]
  * @param {string} options.search - Search term for description
  * @param {string} options.category - Filter by category
  * @param {string} options.type - Filter by type (CREDIT or DEBIT)
@@ -35,6 +36,7 @@ export const getTransactions = async (options = {}) => {
   const params = {
     page: options.page ?? 0,
     size: options.size ?? 20,
+    // Sort can be string or array - axios will handle both correctly
     sort: options.sort ?? 'date,desc',
   }
 
@@ -48,7 +50,28 @@ export const getTransactions = async (options = {}) => {
   if (options.fromDate) params.fromDate = options.fromDate
   if (options.toDate) params.toDate = options.toDate
 
-  const response = await api.get('/transactions', { params })
+  // Use custom params serializer to handle array properly
+  // We need to send: sort=type,desc (not sort=type&sort=desc)
+  const config = {
+    params,
+    paramsSerializer: (params) => {
+      const parts = []
+      Object.keys(params).forEach(key => {
+        const value = params[key]
+        if (Array.isArray(value)) {
+          // For array values, add each as separate param with same key
+          value.forEach(v => {
+            parts.push(`${key}=${encodeURIComponent(v)}`)
+          })
+        } else if (value !== undefined && value !== null) {
+          parts.push(`${key}=${encodeURIComponent(value)}`)
+        }
+      })
+      return parts.join('&')
+    }
+  }
+
+  const response = await api.get('/transactions', config)
   return response.data
 }
 

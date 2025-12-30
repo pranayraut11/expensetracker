@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { CATEGORIES } from '../constants/categories'
+import { useCategories } from '../context/CategoryContext'
 import { getRules, createRule, updateRule } from '../services/ruleService'
 
 const AddRuleModal = ({ isOpen, onClose, transaction, onRuleCreated }) => {
+  const { categories } = useCategories()
   const [selectedCategory, setSelectedCategory] = useState('')
   const [condition, setCondition] = useState('')
   const [loading, setLoading] = useState(false)
@@ -144,9 +145,9 @@ const AddRuleModal = ({ isOpen, onClose, transaction, onRuleCreated }) => {
               className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm px-3 py-2 border"
             >
               <option value="">-- Select Category --</option>
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.name}>
+                  {cat.name}
                 </option>
               ))}
             </select>

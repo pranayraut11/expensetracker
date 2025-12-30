@@ -4,37 +4,16 @@ import { getTransactions } from '../services/transactionApi'
 import { getTotals } from '../services/totalsApi'
 import TransactionTable from '../components/TransactionTable'
 import MonthYearSelector from '../components/MonthYearSelector'
-
-// Category constants
-const CATEGORIES = [
-  'Income',
-  'Food & Dining',
-  'Groceries',
-  'Shopping',
-  'Travel',
-  'Bills & Utilities',
-  'Medical & Health',
-  'Personal Care',
-  'Subscriptions',
-  'Loans & EMIs',
-  'Transfers',
-  'Fees & Charges',
-  'Donations',
-  'Business',
-  'Fuel',
-  'Medical',
-  'Housing / Rent',
-  'Entertainment',
-  'Insurance',
-  'Investment',
-  'Education',
-  'Pets',
-  'Vehicle/Transportation',
-  'Credit Card Payment',
-  'Miscellaneous',
-]
+import SalaryCycleSelector from '../components/SalaryCycleSelector'
+import { useCategories } from '../context/CategoryContext'
 
 const TransactionsPage = () => {
+  const { categories, loading: categoriesLoading } = useCategories()
+
+  // Salary cycle state
+  const [monthMode, setMonthMode] = useState('calendar') // 'calendar' or 'salary'
+  const [selectedSalaryCycle, setSelectedSalaryCycle] = useState(null)
+
   const [searchParams] = useSearchParams()
 
   // State
@@ -49,9 +28,8 @@ const TransactionsPage = () => {
   const [totalElements, setTotalElements] = useState(0)
   const [totalPages, setTotalPages] = useState(0)
 
-  // Sorting state
-  const [sortField, setSortField] = useState('date')
-  const [sortDirection, setSortDirection] = useState('desc')
+  // Sorting state - now supports multiple columns
+  const [sortColumns, setSortColumns] = useState([{ field: 'date', direction: 'desc' }])
 
   // Month and Year selection state
   const [selectedMonth, setSelectedMonth] = useState(null)
@@ -68,19 +46,28 @@ const TransactionsPage = () => {
   // Fetch transactions on component mount and when dependencies change
   useEffect(() => {
     fetchTransactions()
-  }, [page, pageSize, sortField, sortDirection])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, pageSize, JSON.stringify(sortColumns), JSON.stringify(filters)])
 
   const fetchTransactions = async () => {
     try {
       setLoading(true)
-      const sort = `${sortField},${sortDirection}`
+
+      // Build sort parameter - support multiple columns
+      // Use pipe (|) as delimiter instead of comma to avoid Spring Boot auto-splitting
+      const sortParams = sortColumns.map(col => `${col.field}|${col.direction}`)
+
+      console.log('Fetching transactions with filters:', filters)
+      console.log('Fetching transactions with sort:', sortParams)
 
       const response = await getTransactions({
         page,
         size: pageSize,
-        sort,
+        sort: sortParams,
         ...filters
       })
+
+      console.log('Received transactions:', response)
 
       // Update state with paginated data
       setTransactions(response.content || [])
@@ -122,7 +109,7 @@ const TransactionsPage = () => {
 
   const handleApplyFilters = () => {
     setPage(0) // Reset to first page when filters change
-    fetchTransactions()
+    // fetchTransactions will be called automatically by useEffect
   }
 
   const handleClearFilters = () => {
@@ -135,53 +122,24 @@ const TransactionsPage = () => {
     setSelectedMonth(null)
     setSelectedYear(null)
     setPage(0)
-    setTimeout(() => {
-      fetchTransactions()
-    }, 0)
+    // fetchTransactions will be called automatically by useEffect
   }
 
   const handleMonthChange = (month) => {
     setSelectedMonth(month)
-    applyMonthYearFilter(month, selectedYear)
-  }
-
-  const handleYearChange = (year) => {
-    setSelectedYear(year)
-    applyMonthYearFilter(selectedMonth, year)
-  }
-
-  const applyMonthYearFilter = (month, year) => {
-    if (year && month) {
-      // Calculate start and end dates for the selected month/year
-      const startDate = `${year}-${String(month).padStart(2, '0')}-01`
-      const lastDay = new Date(year, month, 0).getDate()
-      const endDate = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    if (month && selectedYear) {
+      // Both month and year are selected
+      const fromDate = new Date(selectedYear, month - 1, 1)
+      const toDate = new Date(selectedYear, month, 0)
 
       setFilters(prev => ({
         ...prev,
-        fromDate: startDate,
-        toDate: endDate
+        fromDate: fromDate.toISOString().split('T')[0],
+        toDate: toDate.toISOString().split('T')[0]
       }))
 
       setPage(0)
-      setTimeout(() => {
-        fetchTransactions()
-      }, 0)
-    } else if (year && !month) {
-      // Only year selected - filter for entire year
-      const startDate = `${year}-01-01`
-      const endDate = `${year}-12-31`
-
-      setFilters(prev => ({
-        ...prev,
-        fromDate: startDate,
-        toDate: endDate
-      }))
-
-      setPage(0)
-      setTimeout(() => {
-        fetchTransactions()
-      }, 0)
+      // fetchTransactions will be called automatically by useEffect
     } else {
       // No month/year selected - clear date filters
       setFilters(prev => ({
@@ -191,9 +149,25 @@ const TransactionsPage = () => {
       }))
 
       setPage(0)
-      setTimeout(() => {
-        fetchTransactions()
-      }, 0)
+      // fetchTransactions will be called automatically by useEffect
+    }
+  }
+
+  const handleYearChange = (year) => {
+    setSelectedYear(year)
+    if (selectedMonth && year) {
+      // Both month and year are selected
+      const fromDate = new Date(year, selectedMonth - 1, 1)
+      const toDate = new Date(year, selectedMonth, 0)
+
+      setFilters(prev => ({
+        ...prev,
+        fromDate: fromDate.toISOString().split('T')[0],
+        toDate: toDate.toISOString().split('T')[0]
+      }))
+
+      setPage(0)
+      // fetchTransactions will be called automatically by useEffect
     }
   }
 
@@ -204,20 +178,126 @@ const TransactionsPage = () => {
 
   const handlePageSizeChange = (newSize) => {
     setPageSize(newSize)
-    setPage(0) // Reset to first page when changing page size
+    setPage(0)
   }
 
-  // Sorting handler
-  const handleSort = (field) => {
-    if (sortField === field) {
-      // Toggle direction if same field
-      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc')
+  const handleMonthModeChange = (mode) => {
+    setMonthMode(mode)
+
+    if (mode === 'calendar') {
+      // Reset to calendar mode
+      setSelectedSalaryCycle(null)
+      // Clear date filters
+      setFilters(prev => ({
+        ...prev,
+        fromDate: '',
+        toDate: ''
+      }))
+      setPage(0)
+      // fetchTransactions will be called automatically by useEffect
+    }
+  }
+
+  const handleSalaryCycleChange = (cycle) => {
+    setSelectedSalaryCycle(cycle)
+
+    if (cycle) {
+      // Format dates to YYYY-MM-DD format - handle both ISO strings and date objects
+      const formatDate = (dateString) => {
+        if (!dateString) return ''
+        // If already in YYYY-MM-DD format, return as is
+        if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+          return dateString
+        }
+        // Parse the date string properly using UTC to avoid timezone issues
+        const date = new Date(dateString)
+        const year = date.getUTCFullYear()
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+        const day = String(date.getUTCDate()).padStart(2, '0')
+        return `${year}-${month}-${day}`
+      }
+
+      const fromDate = formatDate(cycle.startDate)
+      const toDate = formatDate(cycle.endDate)
+
+      console.log('Salary cycle dates:', { startDate: cycle.startDate, endDate: cycle.endDate, formatted: { fromDate, toDate } })
+
+      // Apply salary cycle date range
+      setFilters(prev => ({
+        ...prev,
+        fromDate,
+        toDate
+      }))
+      setPage(0)
+      // fetchTransactions will be called automatically by useEffect
+    }
+  }
+
+  // Sorting handler - supports multi-column sorting
+  const handleSort = (field, ctrlKey = false) => {
+    console.log('handleSort called with field:', field, 'ctrlKey:', ctrlKey)
+    console.log('Current sortColumns:', sortColumns)
+
+    if (ctrlKey) {
+      // Multi-column sort mode (Ctrl/Cmd + Click)
+      const existingIndex = sortColumns.findIndex(col => col.field === field)
+
+      if (existingIndex >= 0) {
+        // Column already in sort list - toggle direction or remove
+        const current = sortColumns[existingIndex]
+        if (current.direction === 'desc') {
+          // Change to ascending
+          const newSortColumns = [...sortColumns]
+          newSortColumns[existingIndex] = { field, direction: 'asc' }
+          console.log('Setting new sort columns (toggle to asc):', newSortColumns)
+          setSortColumns(newSortColumns)
+        } else {
+          // Remove from sort list (if not the only column)
+          if (sortColumns.length > 1) {
+            const filtered = sortColumns.filter((_, i) => i !== existingIndex)
+            console.log('Setting new sort columns (removed):', filtered)
+            setSortColumns(filtered)
+          } else {
+            // If it's the only column, just toggle direction
+            console.log('Setting new sort columns (toggle to desc):', [{ field, direction: 'desc' }])
+            setSortColumns([{ field, direction: 'desc' }])
+          }
+        }
+      } else {
+        // Add new column to sort list
+        const newSortColumns = [...sortColumns, { field, direction: 'desc' }]
+        console.log('Setting new sort columns (add new):', newSortColumns)
+        setSortColumns(newSortColumns)
+      }
     } else {
-      // New field, default to desc
-      setSortField(field)
-      setSortDirection('desc')
+      // Single column sort mode (normal click)
+      const currentColumn = sortColumns.find(col => col.field === field)
+
+      if (currentColumn) {
+        // Toggle direction if same field
+        const newDirection = currentColumn.direction === 'asc' ? 'desc' : 'asc'
+        console.log('Setting new sort columns (single toggle):', [{ field, direction: newDirection }])
+        setSortColumns([{ field, direction: newDirection }])
+      } else {
+        // New field, default to desc
+        console.log('Setting new sort columns (single new):', [{ field, direction: 'desc' }])
+        setSortColumns([{ field, direction: 'desc' }])
+      }
     }
     setPage(0)
+  }
+
+  // Helper function to get sort info for a field
+  const getSortInfo = (field) => {
+    const index = sortColumns.findIndex(col => col.field === field)
+    if (index >= 0) {
+      return {
+        isActive: true,
+        direction: sortColumns[index].direction,
+        order: sortColumns.length > 1 ? index + 1 : null
+      }
+    }
+    return { isActive: false, direction: null, order: null }
   }
 
   const formatCurrency = (value) => {
@@ -258,12 +338,13 @@ const TransactionsPage = () => {
                 name="category"
                 value={filters.category}
                 onChange={handleFilterChange}
+                disabled={categoriesLoading}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="">All Categories</option>
-                {CATEGORIES.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.name}>
+                    {cat.name}
                   </option>
                 ))}
               </select>
@@ -273,6 +354,7 @@ const TransactionsPage = () => {
               <div className="w-full space-y-2 md:space-y-0 md:flex md:space-x-2">
                 <button
                   onClick={handleApplyFilters}
+                  disabled={categoriesLoading}
                   className="w-full md:flex-1 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition"
                 >
                   Apply
@@ -288,16 +370,6 @@ const TransactionsPage = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Month and Year Selector - takes 2 columns */}
-            <div className="lg:col-span-2">
-              <MonthYearSelector
-                selectedMonth={selectedMonth}
-                selectedYear={selectedYear}
-                onMonthChange={handleMonthChange}
-                onYearChange={handleYearChange}
-              />
-            </div>
-
             {/* From Date */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -325,6 +397,40 @@ const TransactionsPage = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
+
+            {/* Month and Year Selector - takes 2 columns */}
+            <div className="lg:col-span-2">
+              <MonthYearSelector
+                selectedMonth={selectedMonth}
+                selectedYear={selectedYear}
+                onMonthChange={handleMonthChange}
+                onYearChange={handleYearChange}
+              />
+            </div>
+          </div>
+
+          {/* Salary Cycle Selector */}
+          <div className="pt-4 border-t border-gray-200">
+            <SalaryCycleSelector
+              onModeChange={handleMonthModeChange}
+              selectedMode={monthMode}
+              selectedCycleId={selectedSalaryCycle?.cycleId}
+              onCycleChange={handleSalaryCycleChange}
+            />
+
+            {/* Show salary cycle info when selected */}
+            {monthMode === 'salary' && selectedSalaryCycle && (
+              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-blue-800">
+                    Showing transactions from <strong>{new Date(selectedSalaryCycle.startDate).toLocaleDateString()}</strong> to <strong>{new Date(selectedSalaryCycle.endDate).toLocaleDateString()}</strong>
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -367,7 +473,7 @@ const TransactionsPage = () => {
                   </div>
                   <div className="bg-red-200 rounded-full p-3">
                     <svg className="w-8 h-8 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 13l-5 5m0 0l-5-5m5 5V6" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17l-5-5m0 0l5-5m-5 5h12" />
                     </svg>
                   </div>
                 </div>
@@ -375,24 +481,18 @@ const TransactionsPage = () => {
             </div>
           )}
 
-          {/* Transaction Count and Pagination Info */}
+          {/* Results info and page size selector */}
           {transactions.length > 0 && (
-            <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-indigo-500 flex justify-between items-center">
+            <div className="bg-white rounded-lg shadow-md p-4 flex justify-between items-center">
               <p className="text-sm text-gray-600">
-                Showing <span className="font-bold text-indigo-600">{page * pageSize + 1}</span> to{' '}
-                <span className="font-bold text-indigo-600">
-                  {Math.min((page + 1) * pageSize, totalElements)}
-                </span>{' '}
-                of <span className="font-bold text-indigo-600">{totalElements}</span> transactions
+                Showing <span className="font-bold text-indigo-600">{page * pageSize + 1}</span> to <span className="font-bold text-indigo-600">{Math.min((page + 1) * pageSize, totalElements)}</span> of <span className="font-bold text-indigo-600">{totalElements}</span> transactions
               </p>
-
-              {/* Page Size Selector */}
               <div className="flex items-center gap-2">
-                <label className="text-sm text-gray-600">Per page:</label>
+                <label className="text-sm text-gray-600">Show:</label>
                 <select
                   value={pageSize}
                   onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                  className="px-2 py-1 border border-gray-300 rounded-md text-sm"
+                  className="border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="10">10</option>
                   <option value="20">20</option>
@@ -403,12 +503,52 @@ const TransactionsPage = () => {
             </div>
           )}
 
+          {/* Sort Order Indicator */}
+          {sortColumns.length > 0 && (
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium text-gray-700">Sort Order:</span>
+                {sortColumns.map((col, index) => (
+                  <div key={col.field} className="flex items-center gap-1 px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-sm">
+                    <span className="font-semibold">{index + 1}.</span>
+                    <span className="capitalize">{col.field}</span>
+                    <span className="text-xs">
+                      {col.direction === 'asc' ? '↑' : '↓'}
+                    </span>
+                    {sortColumns.length > 1 && (
+                      <button
+                        onClick={() => {
+                          const newColumns = sortColumns.filter((_, i) => i !== index)
+                          setSortColumns(newColumns.length > 0 ? newColumns : [{ field: 'date', direction: 'desc' }])
+                        }}
+                        className="ml-1 text-indigo-600 hover:text-indigo-800"
+                        title="Remove from sort"
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {sortColumns.length > 1 && (
+                  <button
+                    onClick={() => setSortColumns([{ field: 'date', direction: 'desc' }])}
+                    className="px-3 py-1 text-sm text-gray-600 hover:text-gray-800 underline"
+                  >
+                    Clear all
+                  </button>
+                )}
+                <span className="text-xs text-gray-500 italic">
+                  (Ctrl/Cmd + Click column headers to add to sort)
+                </span>
+              </div>
+            </div>
+          )}
+
           <TransactionTable
             transactions={transactions}
             onCategoryChanged={() => fetchTransactions()}
             onSort={handleSort}
-            sortField={sortField}
-            sortDirection={sortDirection}
+            getSortInfo={getSortInfo}
           />
 
           {/* Pagination Controls */}

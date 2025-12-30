@@ -3,20 +3,23 @@ import { getSummary } from '../services/transactionApi'
 import { getBalanceSummary } from '../services/balanceSummaryApi'
 import { getIncomeExpenseTrend } from '../services/incomeExpenseTrendApi'
 import { getCategoryExpenses } from '../services/categoryExpenseApi'
-import BalanceSummaryCard from '../components/BalanceSummaryCard'
-import CategoryPieChart from '../components/CategoryPieChart'
+import { getSalaryCycleTotals } from '../services/salaryCycleApi'
+import { getTotals } from '../services/totalsApi'
 import ExpenseBarChart from '../components/ExpenseBarChart'
 import IncomeExpenseTrendChart from '../components/IncomeExpenseTrendChart'
 import TrendFilter from '../components/TrendFilter'
 import CategoryExpenseChart from '../components/CategoryExpenseChart'
 import CategoryMonthSelector from '../components/CategoryMonthSelector'
 import AverageCategoryWidget from '../components/AverageCategoryWidget'
+import SalaryCycleSelector from '../components/SalaryCycleSelector'
 
 const DashboardPage = () => {
-  const [summary, setSummary] = useState(null)
-  const [balanceSummary, setBalanceSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [summary, setSummary] = useState(null)
+
+  // Balance Summary state
+  const [balanceSummary, setBalanceSummary] = useState(null)
 
   // Income vs Expense Trend states
   const [trendData, setTrendData] = useState([])
@@ -26,11 +29,17 @@ const DashboardPage = () => {
 
   // Category Expense states
   const [categoryExpenseData, setCategoryExpenseData] = useState([])
-  const [categorySelectedMonth, setCategorySelectedMonth] = useState(new Date().getMonth() + 1) // Current month
+  const [categorySelectedMonth, setCategorySelectedMonth] = useState('all')
   const [categoryLoading, setCategoryLoading] = useState(false)
+
+  // Salary Cycle states
+  const [monthMode, setMonthMode] = useState('calendar') // 'calendar' or 'salary'
+  const [selectedSalaryCycle, setSelectedSalaryCycle] = useState(null)
+  const [salaryCycleTotals, setSalaryCycleTotals] = useState(null)
 
   const currentYear = new Date().getFullYear()
 
+  // Initial data fetch
   useEffect(() => {
     fetchSummary()
     fetchBalanceSummary()
@@ -38,19 +47,69 @@ const DashboardPage = () => {
     fetchCategoryExpenses()
   }, [])
 
+  // Fetch trend data when month changes
   useEffect(() => {
     fetchTrendData()
   }, [selectedMonth])
 
+  // Fetch category expenses when month changes
   useEffect(() => {
     fetchCategoryExpenses()
   }, [categorySelectedMonth])
 
+  // Fetch salary cycle totals when salary cycle is selected
+  useEffect(() => {
+    if (monthMode === 'salary' && selectedSalaryCycle) {
+      fetchSalaryCycleTotals()
+    }
+  }, [selectedSalaryCycle, monthMode])
+
   const fetchSummary = async () => {
     try {
       setLoading(true)
-      const data = await getSummary()
-      setSummary(data)
+
+      // If in salary mode and cycle selected, use cycle dates
+      if (monthMode === 'salary' && selectedSalaryCycle) {
+        // Format dates to YYYY-MM-DD format - handle both ISO strings and date objects
+        const formatDate = (dateString) => {
+          if (!dateString) return ''
+          // If already in YYYY-MM-DD format, return as is
+          if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+            return dateString
+          }
+          // Parse the date string properly
+          const date = new Date(dateString)
+          // Use UTC to avoid timezone issues
+          const year = date.getUTCFullYear()
+          const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+          const day = String(date.getUTCDate()).padStart(2, '0')
+          return `${year}-${month}-${day}`
+        }
+
+        const fromDate = formatDate(selectedSalaryCycle.startDate)
+        const toDate = formatDate(selectedSalaryCycle.endDate)
+
+        console.log('Salary cycle dates:', { startDate: selectedSalaryCycle.startDate, endDate: selectedSalaryCycle.endDate, formatted: { fromDate, toDate } })
+
+        // Fetch totals for salary cycle
+        const totals = await getTotals(fromDate, toDate, null, null)
+
+        // Create summary object similar to getSummary response
+        const data = {
+          totalIncome: totals.totalCredit,
+          totalExpenses: totals.totalDebit,
+          surplus: totals.totalCredit - totals.totalDebit,
+          openingBalance: 0, // Not applicable for salary cycle
+          closingBalance: 0,  // Not applicable for salary cycle
+          transactionCount: 0,
+          categoryBreakdown: []
+        }
+        setSummary(data)
+      } else {
+        // Normal calendar mode
+        const data = await getSummary()
+        setSummary(data)
+      }
     } catch (err) {
       console.error('Error fetching summary:', err)
       setError('Failed to load summary data')
@@ -61,11 +120,10 @@ const DashboardPage = () => {
 
   const fetchBalanceSummary = async () => {
     try {
-      const summary = await fetchSummary()
-      setBalanceSummary(summary)
+      const data = await getBalanceSummary()
+      setBalanceSummary(data)
     } catch (err) {
       console.error('Error fetching balance summary:', err)
-      setBalanceSummary(null)
     }
   }
 
@@ -75,13 +133,9 @@ const DashboardPage = () => {
       let data
 
       if (selectedMonth === 'all') {
-        // Fetch monthly trend for entire year
         data = await getIncomeExpenseTrend(currentYear)
-        setTrendMode('monthly')
       } else {
-        // Fetch daily trend for specific month
-        data = await getIncomeExpenseTrend(currentYear, selectedMonth)
-        setTrendMode('daily')
+        data = await getIncomeExpenseTrend(currentYear, parseInt(selectedMonth))
       }
 
       setTrendData(data)
@@ -91,10 +145,6 @@ const DashboardPage = () => {
     } finally {
       setTrendLoading(false)
     }
-  }
-
-  const handleMonthChange = (month) => {
-    setSelectedMonth(month)
   }
 
   const fetchCategoryExpenses = async () => {
@@ -110,21 +160,56 @@ const DashboardPage = () => {
     }
   }
 
+  const fetchSalaryCycleTotals = async () => {
+    if (!selectedSalaryCycle) return
+
+    try {
+      const totals = await getSalaryCycleTotals(selectedSalaryCycle.cycleId)
+      setSalaryCycleTotals(totals)
+    } catch (err) {
+      console.error('Error fetching salary cycle totals:', err)
+    }
+  }
+
+  const handleMonthChange = (month) => {
+    setSelectedMonth(month)
+  }
+
   const handleCategoryMonthChange = (month) => {
     setCategorySelectedMonth(month)
   }
 
+  const handleMonthModeChange = (mode) => {
+    setMonthMode(mode)
+
+    if (mode === 'calendar') {
+      // Reset to normal calendar mode
+      setSelectedSalaryCycle(null)
+      setSalaryCycleTotals(null)
+      fetchSummary() // Refresh with calendar data
+    }
+  }
+
+  const handleSalaryCycleChange = (cycle) => {
+    setSelectedSalaryCycle(cycle)
+
+    if (cycle) {
+      // Fetch data for the selected salary cycle
+      fetchSummary()
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-xl text-gray-600">Loading dashboard...</div>
+      <div className="flex justify-center items-center h-screen">
+        <div className="text-2xl text-gray-600">Loading dashboard...</div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-6">
         <p className="text-red-800">{error}</p>
       </div>
     )
@@ -140,6 +225,37 @@ const DashboardPage = () => {
         >
           Refresh
         </button>
+      </div>
+
+      {/* Salary Cycle Selector */}
+      <div className="bg-white rounded-lg shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Date Range Selection</h3>
+        <SalaryCycleSelector
+          onCycleChange={handleSalaryCycleChange}
+          onModeChange={handleMonthModeChange}
+          selectedMode={monthMode}
+          selectedCycleId={selectedSalaryCycle?.cycleId}
+        />
+
+        {/* Show salary cycle info when selected */}
+        {monthMode === 'salary' && selectedSalaryCycle && (
+          <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm text-blue-800">
+                Showing data from <strong>{new Date(selectedSalaryCycle.startDate).toLocaleDateString()}</strong> to <strong>{new Date(selectedSalaryCycle.endDate).toLocaleDateString()}</strong>
+              </p>
+            </div>
+            {salaryCycleTotals && (
+              <div className="mt-2 text-sm text-blue-700">
+                <p>Salary Amount: <strong>₹{salaryCycleTotals.salaryAmount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></p>
+                <p>Net Savings: <strong>₹{salaryCycleTotals.netSavings?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {summary && (
@@ -209,17 +325,10 @@ const DashboardPage = () => {
             </div>
           </div>
 
-          {/* Balance Summary Card (Opening/Closing Balance) */}
-          {balanceSummary && (
-            <BalanceSummaryCard summary={balanceSummary} />
-          )}
+          {/* Average Category Widget */}
+          <AverageCategoryWidget />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <CategoryPieChart categoryBreakdown={summary.categoryBreakdown} />
-            <ExpenseBarChart categoryBreakdown={summary.categoryBreakdown} />
-          </div>
-
-          {/* Income vs Expense Trend Section */}
+          {/* Income vs Expense Trend */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-semibold text-gray-800">
@@ -264,26 +373,16 @@ const DashboardPage = () => {
                 </div>
               </div>
             ) : (
-              <CategoryExpenseChart
-                data={categoryExpenseData}
-                selectedMonth={categorySelectedMonth}
-              />
+              <CategoryExpenseChart data={categoryExpenseData} />
             )}
           </div>
 
-          {/* Average Monthly Category Widget */}
-          <div className="space-y-4">
-            <AverageCategoryWidget />
+          {/* Top 5 Expenses Bar Chart */}
+          <div className="bg-white rounded-lg shadow-md p-6">
+            <h3 className="text-xl font-semibold text-gray-800 mb-4">Top Expenses</h3>
+            <ExpenseBarChart data={summary.categoryBreakdown || []} />
           </div>
         </>
-      )}
-
-      {summary && summary.transactionCount === 0 && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-          <p className="text-yellow-800 text-lg">
-            No transactions found. Please upload a bank statement to get started.
-          </p>
-        </div>
       )}
     </div>
   )

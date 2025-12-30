@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { updateTransactionCategory } from '../services/transactionApi'
-import { CATEGORIES } from '../constants/categories'
+import { useCategories } from '../context/CategoryContext'
 import AddRuleModal from './AddRuleModal'
 
-const TransactionTable = ({ transactions, onCategoryChanged, onSort, sortField, sortDirection }) => {
+const TransactionTable = ({ transactions, onCategoryChanged, onSort, getSortInfo }) => {
+  const { categories, getCategoryColor } = useCategories()
   const [editingId, setEditingId] = useState(null)
   const [copiedId, setCopiedId] = useState(null)
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
@@ -17,28 +18,6 @@ const TransactionTable = ({ transactions, onCategoryChanged, onSort, sortField, 
       month: 'short',
       year: 'numeric',
     })
-  }
-
-  const getCategoryColor = (category) => {
-    const colors = {
-      Food: 'bg-orange-100 text-orange-800',
-      Groceries: 'bg-green-100 text-green-800',
-      Shopping: 'bg-purple-100 text-purple-800',
-      Travel: 'bg-blue-100 text-blue-800',
-      Income: 'bg-emerald-100 text-emerald-800',
-      Bills: 'bg-yellow-100 text-yellow-800',
-      Fuel: 'bg-red-100 text-red-800',
-      Medical: 'bg-pink-100 text-pink-800',
-      Rent: 'bg-indigo-100 text-indigo-800',
-      Entertainment: 'bg-fuchsia-100 text-fuchsia-800',
-      Insurance: 'bg-cyan-100 text-cyan-800',
-      Investment: 'bg-teal-100 text-teal-800',
-      Education: 'bg-violet-100 text-violet-800',
-      Transfers: 'bg-slate-100 text-slate-800',
-      'ATM Withdrawals': 'bg-stone-100 text-stone-800',
-      Miscellaneous: 'bg-gray-100 text-gray-800',
-    }
-    return colors[category] || 'bg-gray-100 text-gray-800'
   }
 
   const handleCategoryChange = async (transaction, newCategory) => {
@@ -63,33 +42,48 @@ const TransactionTable = ({ transactions, onCategoryChanged, onSort, sortField, 
     }
   }
 
-  // Sortable column header component
+  // Sortable column header component with multi-column support
   const SortableHeader = ({ field, label, align = 'left' }) => {
-    const isActive = sortField === field
-    const isAsc = sortDirection === 'asc'
+    const sortInfo = getSortInfo ? getSortInfo(field) : { isActive: false, direction: null, order: null }
+    const { isActive, direction, order } = sortInfo
+
+    const handleClick = (e) => {
+      if (onSort) {
+        onSort(field, e.ctrlKey || e.metaKey)
+      }
+    }
 
     return (
       <th
         className={`px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 ${
           align === 'right' ? 'text-right' : 'text-left'
-        }`}
-        onClick={() => onSort && onSort(field)}
+        } ${isActive ? 'bg-blue-50' : ''}`}
+        onClick={handleClick}
+        title="Click to sort. Ctrl/Cmd + Click to add to sort order"
       >
         <div className={`flex items-center gap-1 ${align === 'right' ? 'justify-end' : 'justify-start'}`}>
           <span>{label}</span>
           {onSort && (
-            <span className="flex-shrink-0">
+            <span className="flex-shrink-0 flex items-center gap-0.5">
               {isActive ? (
-                // Show active arrow
-                isAsc ? (
-                  <svg className="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
-                )
+                <>
+                  {/* Show active arrow */}
+                  {direction === 'asc' ? (
+                    <svg className="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M5.293 9.707a1 1 0 010-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L11 7.414V15a1 1 0 11-2 0V7.414L6.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-indigo-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M14.707 10.293a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 111.414-1.414L9 12.586V5a1 1 0 012 0v7.586l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                  {/* Show sort order number if multi-column sorting */}
+                  {order !== null && (
+                    <span className="text-xs font-bold text-indigo-600 bg-indigo-100 rounded-full w-4 h-4 flex items-center justify-center">
+                      {order}
+                    </span>
+                  )}
+                </>
               ) : (
                 // Show inactive sorting indicator
                 <svg className="w-4 h-4 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
@@ -195,12 +189,19 @@ const TransactionTable = ({ transactions, onCategoryChanged, onSort, sortField, 
                       onBlur={() => setEditingId(null)}
                       autoFocus
                     >
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>{c}</option>
+                      {categories.map((c) => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
                       ))}
                     </select>
                   ) : (
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(transaction.category)}`}>
+                    <span
+                      className="px-2 py-1 rounded-full text-xs font-medium"
+                      style={{
+                        backgroundColor: `${getCategoryColor(transaction.category)}20`,
+                        color: getCategoryColor(transaction.category),
+                        border: `1px solid ${getCategoryColor(transaction.category)}40`
+                      }}
+                    >
                       {transaction.category}
                     </span>
                   )}

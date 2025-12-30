@@ -8,7 +8,7 @@ export default function RuleFormPage({ mode = "create" }) {
   const { id } = useParams();
   const [initial, setInitial] = useState({
     ruleName: "",
-    categoryName: "Food",
+    categoryName: "",
     pattern: "",
     priority: 0,
     enabled: true,

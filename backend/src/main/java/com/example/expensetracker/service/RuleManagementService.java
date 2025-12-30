@@ -38,6 +38,7 @@ public class RuleManagementService {
         existing.setPriority(updated.getPriority());
         existing.setEnabled(updated.getEnabled());
         existing.setIncludeInTotals(updated.getIncludeInTotals());
+        existing.setTransactionType(updated.getTransactionType() != null ? updated.getTransactionType() : "ANY");
         return repository.save(existing);
     }
 
@@ -52,6 +53,9 @@ public class RuleManagementService {
     }
 
     public RuleDefinition saveRule(RuleDefinition rule) {
+        if (rule.getTransactionType() == null) {
+            rule.setTransactionType("ANY");
+        }
         return repository.save(rule);
     }
 
@@ -67,11 +71,21 @@ public class RuleManagementService {
                 sb.append("rule \"").append(escape(r.getRuleName())).append("\"\n");
                 sb.append("    salience ").append(r.getPriority() == null ? 0 : r.getPriority()).append("\n");
                 sb.append("when\n");
-                sb.append("    t : Transaction( description matches (\"(?i).*")
-                  .append(escapeForRegex(r.getPattern())).append(".*\") )\n");
+                // Build a single Transaction pattern with optional type and mandatory description match
+                StringBuilder condition = new StringBuilder();
+                condition.append("t : Transaction( ");
+                boolean hasPrev = false;
+                if (r.getTransactionType() != null && !"ANY".equalsIgnoreCase(r.getTransactionType())) {
+                    condition.append("type == \"").append(escape(r.getTransactionType())).append("\" ");
+                    hasPrev = true;
+                }
+                if (hasPrev) condition.append(", ");
+                condition.append("description matches (\"(?i).*")
+                         .append(escapeForRegex(r.getPattern())).append(".*\") ");
+                condition.append(")\n");
+                sb.append(condition);
                 sb.append("then\n");
                 sb.append("    t.setCategory(\"").append(escape(r.getCategoryName())).append("\");\n");
-                // Set includeInTotals based on rule configuration
                 boolean includeInTotals = r.getIncludeInTotals() != null ? r.getIncludeInTotals() : true;
                 sb.append("    t.setIncludeInTotals(").append(includeInTotals).append(");\n");
                 sb.append("end\n\n");
@@ -157,6 +171,7 @@ public class RuleManagementService {
         dto.setPriority(rule.getPriority());
         dto.setEnabled(rule.getEnabled());
         dto.setIncludeInTotals(rule.getIncludeInTotals());
+        dto.setTransactionType(rule.getTransactionType());
         return dto;
     }
 
@@ -167,7 +182,7 @@ public class RuleManagementService {
         rule.setPattern(dto.getPattern());
         rule.setPriority(dto.getPriority() != null ? dto.getPriority() : 0);
         rule.setEnabled(dto.getEnabled() != null ? dto.getEnabled() : true);
+        rule.setTransactionType(dto.getTransactionType() != null ? dto.getTransactionType() : "ANY");
         return rule;
     }
 }
-

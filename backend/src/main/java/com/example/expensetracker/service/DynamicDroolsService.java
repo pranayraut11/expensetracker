@@ -7,6 +7,7 @@ import org.kie.api.runtime.KieContainer;
 import org.kie.api.runtime.KieSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Slf4j
@@ -25,6 +26,7 @@ public class DynamicDroolsService {
         this.kieContainer = ruleLoader.loadKieContainer();
     }
 
+    @Transactional
     public int applyRules(Transaction t) {
         KieSession session = kieContainer.newKieSession();
         try {

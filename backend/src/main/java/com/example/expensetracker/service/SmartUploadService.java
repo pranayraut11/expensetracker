@@ -51,15 +51,15 @@ public class SmartUploadService {
         logger.info("Bank detected: {}, Transactions parsed: {}", detectedBank.getDisplayName(), rowsProcessed);
 
         // Save transactions with duplicate detection
-        TransactionSaveResult saveResult = transactionService.saveAllWithDuplicateCheck(transactions);
+        TransactionSaveResult saveResult = transactionService.saveTransactions(transactions);
         int rowsSaved = saveResult.getSavedTransactions().size();
         int duplicates = saveResult.getDuplicateTransactions().size();
         int errors = rowsProcessed - rowsSaved - duplicates;
 
         logger.info("Save completed: {} saved, {} duplicates, {} errors", rowsSaved, duplicates, errors);
 
-        // Build response
-        UploadResponseDto response = new UploadResponseDto(
+        // Build response and return directly
+        return new UploadResponseDto(
             rowsProcessed,
             rowsSaved,
             errors,
@@ -67,7 +67,6 @@ public class SmartUploadService {
             saveResult.getDuplicateTransactions()
         );
 
-        return response;
     }
 
     /**
@@ -89,9 +88,8 @@ public class SmartUploadService {
                 "Unsupported file type. Please upload Excel (.xlsx or .xls) files only."
             );
         }
-
+        long maxSize = 10L * 1024 * 1024; // 10MB
         // Check file size (max 10MB)
-        long maxSize = 10 * 1024 * 1024; // 10MB
         if (file.getSize() > maxSize) {
             throw new IllegalArgumentException("File size exceeds maximum limit of 10MB");
         }

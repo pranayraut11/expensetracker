@@ -22,5 +22,15 @@ export const settingsApi = {
     const response = await axios.delete(`${API_URL}/clear-tags`);
     return response.data;
   },
+
+  clearSalaryCycles: async () => {
+    const response = await axios.delete(`${API_URL}/clear-salary-cycles`);
+    return response.data;
+  },
+
+  recalculateSalaryCycles: async () => {
+    const response = await axios.post(`${API_URL}/recalculate-salary-cycles`);
+    return response.data;
+  },
 };
 

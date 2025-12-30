@@ -26,7 +26,7 @@ public class TransactionController {
     }
 
     /**
-     * Get all transactions with pagination, filtering, and sorting
+     * Get all transactions with pagination, filtering, and multi-column sorting
      *
      * Query Params:
      * - page: Page number (default 0)
@@ -34,6 +34,8 @@ public class TransactionController {
      * - sort: Sort field and direction (default "date,desc")
      *         Format: field,direction
      *         Examples: date,desc | amount,asc | category,asc
+     *         Multi-sort: Can pass multiple sort parameters
+     *         Examples: sort=type,asc&sort=category,asc&sort=date,desc
      * - search: Search description (optional)
      * - category: Filter by category (optional)
      * - type: Filter by type CREDIT/DEBIT (optional)
@@ -47,7 +49,7 @@ public class TransactionController {
     public ResponseEntity<PagedTransactionResponse> getTransactions(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "date,desc") String sort,
+            @RequestParam(defaultValue = "date,desc") String[] sort,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String type,
@@ -55,16 +57,45 @@ public class TransactionController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate toDate) {
 
-        // Parse sort parameter
-        String[] sortParts = sort.split(",");
-        String sortField = sortParts.length > 0 ? sortParts[0] : "date";
-        String sortDirection = sortParts.length > 1 ? sortParts[1] : "desc";
+        // Parse sort parameters - support multiple sort columns
+        // Using String[] instead of List<String> to avoid automatic comma splitting
+        // Using pipe (|) as delimiter instead of comma
+        List<String[]> sortParams = java.util.Arrays.stream(sort)
+            .map(s -> s.split("\\|"))  // Split on pipe instead of comma
+            .toList();
 
-        // Validate and map sort field
-        sortField = mapSortField(sortField);
+        // Debug logging
+        System.out.println("=== SORT DEBUG START ===");
+        System.out.println("Raw sort params received: " + java.util.Arrays.toString(sort));
+        System.out.println("sort.length: " + sort.length);
+        for (int i = 0; i < sort.length; i++) {
+            String[] param = sort[i].split("\\|");  // Split on pipe
+            System.out.println("sort[" + i + "]: \"" + sort[i] + "\" -> split into " + java.util.Arrays.toString(param));
+        }
+        System.out.println("sortParams.size(): " + sortParams.size());
+        for (int i = 0; i < sortParams.size(); i++) {
+            String[] param = sortParams.get(i);
+            System.out.println("sortParams[" + i + "]: length=" + param.length + ", values=" + java.util.Arrays.toString(param));
+        }
+
+        // Build sort field and direction for primary sort (first in list)
+        String sortField = "date";
+        String sortDirection = "desc";
+
+        if (sortParams.size() > 0 && sortParams.get(0).length > 0) {
+            String[] primary = sortParams.get(0);
+            sortField = primary.length > 0 ? mapSortField(primary[0].trim()) : "date";
+            sortDirection = primary.length > 1 ? primary[1].trim() : "desc";
+
+            System.out.println("Parsed sortField: " + sortField);
+            System.out.println("Parsed sortDirection: " + sortDirection);
+            System.out.println("Direction after equalsIgnoreCase check: " + ("asc".equalsIgnoreCase(sortDirection) ? "ASC" : "DESC"));
+        }
+        System.out.println("=== SORT DEBUG END ===");
+        System.out.println();
 
         PagedTransactionResponse response = transactionService.getTransactionsPageable(
-            page, size, sortField, sortDirection,
+            page, size, sortField, sortDirection, sortParams,
             search, category, type, isCreditCardTransaction,
             fromDate, toDate
         );
