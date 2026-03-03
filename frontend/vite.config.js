@@ -17,6 +17,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/categories': {
+        target: backendUrl,
+        changeOrigin: true,
+        secure: false,
+      },
       '/transactions': {
         target: backendUrl,
         changeOrigin: true,

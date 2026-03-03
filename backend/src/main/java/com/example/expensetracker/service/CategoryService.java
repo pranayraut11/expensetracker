@@ -226,13 +226,14 @@ public class CategoryService {
                 {"Vehicle/Transportation", "#0284c7", "car"},
                 {"Credit Card Payment", "#64748b", "credit-card"},
                 {"Miscellaneous", "#6b7280", "more-horizontal"},
-                    {"Salary", "#059669", "more-horizontal"}
+                    {"Salary", "#059669", "more-horizontal"},
+                    {"Work Expense", "#059669", "more-horizontal"}
             };
 
             for (String[] cat : defaultCategories) {
                 Category category = new Category();
                 category.setName(cat[0]);
-                category.setSlug(generateSlug(cat[0]));
+                    category.setSlug(generateSlug(cat[0]));
                 category.setColor(cat[1]);
                 category.setIcon(cat[2]);
                 category.setEnabled(true);

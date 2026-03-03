@@ -12,8 +12,22 @@ export const getAllCategories = async () => {
  * Get only enabled categories
  */
 export const getEnabledCategories = async () => {
-  const response = await api.get('/api/categories/enabled')
-  return response.data
+  console.log('categoryApi - Requesting enabled categories from /api/categories/enabled')
+  try {
+    const response = await api.get('/api/categories/enabled')
+    console.log('categoryApi - Response:', response)
+    console.log('categoryApi - Response data:', response.data)
+    return response.data
+  } catch (error) {
+    console.error('categoryApi - Error fetching enabled categories:', error)
+    console.error('categoryApi - Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      url: error.config?.url
+    })
+    throw error
+  }
 }
 
 /**

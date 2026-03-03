@@ -30,8 +30,20 @@ public class DynamicDroolsService {
     public int applyRules(Transaction t) {
         KieSession session = kieContainer.newKieSession();
         try {
+            log.info("═══════════════════════════════════════════════════════");
+            log.info("🔥 APPLYING DROOLS RULES");
+            log.info("Description: [{}]", t.getDescription());
+            log.info("Current Category: [{}]", t.getCategory());
+            log.info("═══════════════════════════════════════════════════════");
+
             session.insert(t);
-         return session.fireAllRules();
+            int rulesFired = session.fireAllRules();
+
+            log.info("✅ Rules fired: {}", rulesFired);
+            log.info("📋 New Category: [{}]", t.getCategory());
+            log.info("═══════════════════════════════════════════════════════\n");
+
+            return rulesFired;
         } finally {
             session.dispose();
         }

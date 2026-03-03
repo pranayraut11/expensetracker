@@ -16,10 +16,18 @@ export const CategoryProvider = ({ children }) => {
     try {
       setLoading(true)
       setError(null)
+      console.log('CategoryContext - Fetching categories...')
       const data = await getEnabledCategories()
+      console.log('CategoryContext - Received categories:', data)
+      console.log('CategoryContext - Categories count:', data?.length)
       setCategories(data)
     } catch (err) {
-      console.error('Error fetching categories:', err)
+      console.error('CategoryContext - Error fetching categories:', err)
+      console.error('CategoryContext - Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status
+      })
       setError('Failed to load categories')
       // Set empty array on error to prevent app breakage
       setCategories([])

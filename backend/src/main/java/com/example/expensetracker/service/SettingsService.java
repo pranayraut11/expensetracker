@@ -4,9 +4,9 @@ import com.example.expensetracker.repository.RuleDefinitionRepository;
 import com.example.expensetracker.repository.TagRepository;
 import com.example.expensetracker.repository.TransactionRepository;
 import com.example.expensetracker.repository.SalaryCycleRepository;
+import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class SettingsService {
 
     private static final Logger logger = LoggerFactory.getLogger(SettingsService.class);
@@ -24,21 +25,6 @@ public class SettingsService {
     private final DynamicDroolsService dynamicDroolsService;
     private final SalaryCycleRepository salaryCycleRepository;
     private final SalaryCycleService salaryCycleService;
-
-    @Autowired
-    public SettingsService(TransactionRepository transactionRepository,
-                          TagRepository tagRepository,
-                          RuleDefinitionRepository ruleDefinitionRepository,
-                          DynamicDroolsService dynamicDroolsService,
-                          SalaryCycleRepository salaryCycleRepository,
-                          SalaryCycleService salaryCycleService) {
-        this.transactionRepository = transactionRepository;
-        this.tagRepository = tagRepository;
-        this.ruleDefinitionRepository = ruleDefinitionRepository;
-        this.dynamicDroolsService = dynamicDroolsService;
-        this.salaryCycleRepository = salaryCycleRepository;
-        this.salaryCycleService = salaryCycleService;
-    }
 
     /**
      * Clear all data from the system
@@ -63,7 +49,6 @@ public class SettingsService {
 
         // Reload rules (will be empty now)
         dynamicDroolsService.reloadRules();
-
         counts.put("transactions", transactionCount);
         counts.put("tags", tagCount);
         counts.put("rules", ruleCount);

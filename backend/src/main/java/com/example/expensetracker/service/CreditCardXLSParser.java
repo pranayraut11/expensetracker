@@ -2,6 +2,7 @@ package com.example.expensetracker.service;
 
 import com.example.expensetracker.model.Transaction;
 import com.example.expensetracker.util.FingerprintHashUtil;
+import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,15 +19,13 @@ import java.util.Date;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class CreditCardXLSParser {
 
     private static final Logger logger = LoggerFactory.getLogger(CreditCardXLSParser.class);
 
     private final DynamicDroolsService dynamicDroolsService;
 
-    public CreditCardXLSParser(DynamicDroolsService dynamicDroolsService) {
-        this.dynamicDroolsService = dynamicDroolsService;
-    }
 
     /**
      * Parse credit card statement XLS file
@@ -58,8 +57,19 @@ public class CreditCardXLSParser {
                 try {
                     Transaction transaction = parseRow(row, columns);
                     if (transaction != null) {
-                        // Apply categorization rules
+                        // Preprocess description: replace "-" and "@" with spaces for better word matching
+                        String originalDescription = transaction.getDescription();
+                        if (originalDescription != null) {
+                            String processedDescription = originalDescription.replaceAll("[-@]", " ").replaceAll("\\s+", " ").trim();
+                            transaction.setDescription(processedDescription);
+                        }
+
+                        // Apply categorization rules using Drools
                         dynamicDroolsService.applyRules(transaction);
+
+                        // Restore original description for storage
+                        transaction.setDescription(originalDescription);
+
                         transactions.add(transaction);
                     }
                 } catch (Exception e) {

@@ -80,18 +80,32 @@ public class RuleManagementService {
                     hasPrev = true;
                 }
                 if (hasPrev) condition.append(", ");
-                condition.append("description matches (\"(?i).*")
-                         .append(escapeForRegex(r.getPattern())).append(".*\") ");
+                condition.append("description matches (\"(?i).*\\\\b")
+                        .append(escapeForRegex(r.getPattern().toUpperCase()))
+                        .append("\\\\b.*\") ");
+                System.out.println("DEBUG - Generated condition: " + condition);
                 condition.append(")\n");
                 sb.append(condition);
                 sb.append("then\n");
+                sb.append("    System.out.println(\"🎯 RULE FIRED: '").append(escape(r.getRuleName())).append("'\");\n");
+                sb.append("    System.out.println(\"   Pattern: ").append(escape(r.getPattern())).append("\");\n");
+                sb.append("    System.out.println(\"   Description: \" + t.getDescription());\n");
+                sb.append("    System.out.println(\"   Setting category to: ").append(escape(r.getCategoryName())).append("\");\n");
                 sb.append("    t.setCategory(\"").append(escape(r.getCategoryName())).append("\");\n");
                 boolean includeInTotals = r.getIncludeInTotals() != null ? r.getIncludeInTotals() : true;
                 sb.append("    t.setIncludeInTotals(").append(includeInTotals).append(");\n");
                 sb.append("end\n\n");
             }
         }
-        return sb.toString();
+
+        String drlContent = sb.toString();
+        System.out.println("════════════════════════════════════════════════════════════════");
+        System.out.println("📝 GENERATED DRL CONTENT:");
+        System.out.println("════════════════════════════════════════════════════════════════");
+        System.out.println(drlContent);
+        System.out.println("════════════════════════════════════════════════════════════════\n");
+
+        return drlContent;
     }
 
     private String escape(String s) {

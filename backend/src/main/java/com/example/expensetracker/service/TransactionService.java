@@ -11,6 +11,7 @@ import com.example.expensetracker.repository.TransactionRepository;
 import com.example.expensetracker.specification.TransactionSpecification;
 import com.example.expensetracker.util.MerchantNormalizer;
 import com.example.expensetracker.util.TransactionHashUtil;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -31,6 +32,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class TransactionService {
 
     private static final Logger logger = LoggerFactory.getLogger(TransactionService.class);
@@ -40,30 +42,13 @@ public class TransactionService {
     private final MerchantNormalizer merchantNormalizer;
     private final TagExtractionService tagExtractorService;
     private final TagRepository tagRepository;
-    private SalaryCycleService salaryCycleService;
+    private final SalaryCycleService salaryCycleService;
 
-    @Autowired
-    public TransactionService(TransactionRepository transactionRepository,
-                              DynamicDroolsService dynamicDroolsService,
-                              MerchantNormalizer merchantNormalizer,
-                              TagExtractionService tagExtractorService,
-                              TagRepository tagRepository) {
-        this.transactionRepository = transactionRepository;
-        this.dynamicDroolsService = dynamicDroolsService;
-        this.merchantNormalizer = merchantNormalizer;
-        this.tagExtractorService = tagExtractorService;
-        this.tagRepository = tagRepository;
-    }
 
     /**
     /**
      * Set salary cycle service (avoid circular dependency with setter injection)
      */
-    @Autowired(required = false)
-    public void setSalaryCycleService(SalaryCycleService salaryCycleService) {
-        this.salaryCycleService = salaryCycleService;
-    }
-
     /**
      * Save a batch of transactions (fixed: removed duplicate/invalid code)
      */
@@ -424,18 +409,70 @@ public class TransactionService {
     }
 
     /**
-     * Recategorize all transactions using current rules
+     * Preprocess description by separating words connected with "-" or "@"
+     * Example: "UPI-DHARDEVI VEGETABLES-GETEPAY" -> "UPI DHARDEVI VEGETABLES GETEPAY"
+     */
+    private String preprocessDescription(String description) {
+        if (description == null || description.isEmpty()) {
+            return description;
+        }
+
+        // Replace "-" and "@" with spaces to separate words
+        String processed = description.replaceAll("[-@]", " ");
+
+        // Remove multiple consecutive spaces
+        processed = processed.replaceAll("\\s+", " ").trim();
+
+        logger.debug("Preprocessed description: '{}' -> '{}'", description, processed);
+        return processed;
+    }
+
+    /**
+     * Recategorize all transactions using Drools rules
      */
     @Transactional
     public int recategorizeAll() {
         List<Transaction> allTransactions = transactionRepository.findAll();
         int count = 0;
+        int transactionNumber = 0;
+
+        logger.info("🔄 Starting recategorization of {} transactions", allTransactions.size());
 
         for (Transaction transaction : allTransactions) {
-            count = count + dynamicDroolsService.applyRules(transaction);
+            transactionNumber++;
+
+            // Preprocess description before applying rules
+            String originalDescription = transaction.getDescription();
+            String processedDescription = preprocessDescription(originalDescription);
+
+            logger.info("\n╔════════════════════════════════════════════════════════════════");
+            logger.info("║ Transaction #{}/{}", transactionNumber, allTransactions.size());
+            logger.info("╠════════════════════════════════════════════════════════════════");
+            logger.info("║ ID: {}", transaction.getId());
+            logger.info("║ Original Description: [{}]", originalDescription);
+            logger.info("║ Processed Description: [{}]", processedDescription);
+            logger.info("║ Current Category: [{}]", transaction.getCategory());
+            logger.info("║ Java Regex Test (VI): {}", processedDescription.matches("(?i).*\\b(VI)\\b.*"));
+            logger.info("║ Java Regex Test (INTERNET): {}", processedDescription.matches("(?i).*\\b(INTERNET)\\b.*"));
+            logger.info("╚════════════════════════════════════════════════════════════════");
+
+            transaction.setDescription(processedDescription);
+            String categoryBefore = transaction.getCategory();
+
+            int rulesFired = dynamicDroolsService.applyRules(transaction);
+
+            String categoryAfter = transaction.getCategory();
+            if (!categoryBefore.equals(categoryAfter)) {
+                logger.warn("⚠️  CATEGORY CHANGED: '{}' -> '{}'", categoryBefore, categoryAfter);
+            }
+
+            count += rulesFired;
+
+            // Restore original description
+            transaction.setDescription(originalDescription);
         }
 
-        logger.info("Recategorized {} transactions", count);
+        logger.info("\n✅ Recategorization complete: {} rules fired across {} transactions", count, allTransactions.size());
         return count;
     }
 }

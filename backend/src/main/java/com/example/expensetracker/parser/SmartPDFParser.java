@@ -3,12 +3,15 @@ package com.example.expensetracker.parser;
 import com.example.expensetracker.model.BankType;
 import com.example.expensetracker.model.Transaction;
 import com.example.expensetracker.service.BankDetectorService;
+import com.example.expensetracker.service.CategorizationService;
 import com.example.expensetracker.service.DynamicDroolsService;
 import com.example.expensetracker.util.FirstRowDetector;
+import lombok.RequiredArgsConstructor;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -19,7 +22,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// @Component - Removed: PDF parsing not supported
+@Component
+@RequiredArgsConstructor
 public class SmartPDFParser implements StatementParser {
 
     private static final Logger logger = LoggerFactory.getLogger(SmartPDFParser.class);
@@ -34,10 +38,7 @@ public class SmartPDFParser implements StatementParser {
     private final DynamicDroolsService dynamicDroolsService;
     private BankType detectedBank = BankType.UNKNOWN;
 
-    public SmartPDFParser(BankDetectorService bankDetectorService, DynamicDroolsService dynamicDroolsService) {
-        this.bankDetectorService = bankDetectorService;
-        this.dynamicDroolsService = dynamicDroolsService;
-    }
+
 
     @Override
     public List<Transaction> parse(MultipartFile file) throws IOException {
@@ -106,8 +107,19 @@ public class SmartPDFParser implements StatementParser {
                     try {
                         Transaction transaction = parseLine(line);
                         if (transaction != null) {
-                            // Apply categorization rules
+                            // Preprocess description: replace "-" and "@" with spaces for better word matching
+                            String originalDescription = transaction.getDescription();
+                            if (originalDescription != null) {
+                                String processedDescription = originalDescription.replaceAll("[-@]", " ").replaceAll("\\s+", " ").trim();
+                                transaction.setDescription(processedDescription);
+                            }
+
+                            // Apply categorization rules using Drools
                             dynamicDroolsService.applyRules(transaction);
+
+                            // Restore original description for storage
+                            transaction.setDescription(originalDescription);
+
                             transactions.add(transaction);
                         }
                     } catch (Exception e) {

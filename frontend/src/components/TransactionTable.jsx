@@ -10,6 +10,12 @@ const TransactionTable = ({ transactions, onCategoryChanged, onSort, getSortInfo
   const [isRuleModalOpen, setIsRuleModalOpen] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState(null)
 
+  // Debug: Log categories when they change
+  React.useEffect(() => {
+    console.log('TransactionTable - Categories loaded:', categories)
+    console.log('TransactionTable - Categories count:', categories?.length)
+  }, [categories])
+
   const formatDate = (date) => {
     if (!date) return '—'
     const dateObj = new Date(date)
@@ -184,14 +190,19 @@ const TransactionTable = ({ transactions, onCategoryChanged, onSort, getSortInfo
                   {editingId === transaction.id ? (
                     <select
                       className="border rounded px-2 py-1 text-sm"
-                      value={transaction.category}
+                      value={transaction.category || ''}
                       onChange={(e) => handleCategoryChange(transaction, e.target.value)}
                       onBlur={() => setEditingId(null)}
                       autoFocus
                     >
-                      {categories.map((c) => (
-                        <option key={c.id} value={c.name}>{c.name}</option>
-                      ))}
+                      <option value="" disabled>Select category...</option>
+                      {categories && categories.length > 0 ? (
+                        categories.map((c) => (
+                          <option key={c.id} value={c.name}>{c.name}</option>
+                        ))
+                      ) : (
+                        <option value="" disabled>No categories available</option>
+                      )}
                     </select>
                   ) : (
                     <span

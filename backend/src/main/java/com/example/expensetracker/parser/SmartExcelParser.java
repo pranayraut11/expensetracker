@@ -5,6 +5,7 @@ import com.example.expensetracker.model.Transaction;
 import com.example.expensetracker.service.BankDetectorService;
 import com.example.expensetracker.service.DynamicDroolsService;
 import com.example.expensetracker.util.FirstRowDetector;
+import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +21,7 @@ import java.util.Date;
 import java.util.List;
 
 @Component
+@RequiredArgsConstructor
 public class SmartExcelParser implements StatementParser {
 
     private static final Logger logger = LoggerFactory.getLogger(SmartExcelParser.class);
@@ -27,11 +29,6 @@ public class SmartExcelParser implements StatementParser {
     private final BankDetectorService bankDetectorService;
     private final DynamicDroolsService dynamicDroolsService;
     private BankType detectedBank = BankType.UNKNOWN;
-
-    public SmartExcelParser(BankDetectorService bankDetectorService, DynamicDroolsService dynamicDroolsService) {
-        this.bankDetectorService = bankDetectorService;
-        this.dynamicDroolsService = dynamicDroolsService;
-    }
 
     @Override
     public List<Transaction> parse(MultipartFile file) throws IOException {
@@ -79,8 +76,19 @@ public class SmartExcelParser implements StatementParser {
                 try {
                     Transaction transaction = parseRow(row, columns);
                     if (transaction != null) {
-                        // Apply categorization rules
+                        // Preprocess description: replace "-" and "@" with spaces for better word matching
+                        String originalDescription = transaction.getDescription();
+                        if (originalDescription != null) {
+                            String processedDescription = originalDescription.replaceAll("[-@]", " ").replaceAll("\\s+", " ").trim();
+                            transaction.setDescription(processedDescription);
+                        }
+
+                        // Apply categorization rules using Drools
                         dynamicDroolsService.applyRules(transaction);
+
+                        // Restore original description for storage
+                        transaction.setDescription(originalDescription);
+
                         transactions.add(transaction);
                     }
                 } catch (Exception e) {
