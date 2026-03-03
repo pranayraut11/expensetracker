@@ -38,13 +38,13 @@ public class RuleDefinition {
     @Column(nullable = false, length = 10)
     private String transactionType = "ANY"; // ANY, CREDIT, DEBIT
 
+    public String getTransactionType() { return transactionType; }
+    public void setTransactionType(String transactionType) { this.transactionType = transactionType; }
     @PrePersist
-    public void prePersist() {
-        LocalDateTime now = LocalDateTime.now();
-        if (createdAt == null) createdAt = now;
-        updatedAt = now;
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
     }
-
     @PreUpdate
     public void preUpdate() {
         updatedAt = LocalDateTime.now();
@@ -69,6 +69,5 @@ public class RuleDefinition {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-    public String getTransactionType() { return transactionType; }
-    public void setTransactionType(String transactionType) { this.transactionType = transactionType; }
 }
+

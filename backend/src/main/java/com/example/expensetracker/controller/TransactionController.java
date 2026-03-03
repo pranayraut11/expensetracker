@@ -63,7 +63,7 @@ public class TransactionController {
         List<String[]> sortParams = java.util.Arrays.stream(sort)
             .map(s -> s.split("\\|"))  // Split on pipe instead of comma
             .toList();
-
+        
         // Debug logging
         System.out.println("=== SORT DEBUG START ===");
         System.out.println("Raw sort params received: " + java.util.Arrays.toString(sort));
@@ -77,16 +77,16 @@ public class TransactionController {
             String[] param = sortParams.get(i);
             System.out.println("sortParams[" + i + "]: length=" + param.length + ", values=" + java.util.Arrays.toString(param));
         }
-
+        
         // Build sort field and direction for primary sort (first in list)
         String sortField = "date";
         String sortDirection = "desc";
-
+        
         if (sortParams.size() > 0 && sortParams.get(0).length > 0) {
             String[] primary = sortParams.get(0);
             sortField = primary.length > 0 ? mapSortField(primary[0].trim()) : "date";
             sortDirection = primary.length > 1 ? primary[1].trim() : "desc";
-
+            
             System.out.println("Parsed sortField: " + sortField);
             System.out.println("Parsed sortDirection: " + sortDirection);
             System.out.println("Direction after equalsIgnoreCase check: " + ("asc".equalsIgnoreCase(sortDirection) ? "ASC" : "DESC"));

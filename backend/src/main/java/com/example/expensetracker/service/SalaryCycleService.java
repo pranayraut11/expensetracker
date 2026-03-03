@@ -143,7 +143,7 @@ public class SalaryCycleService {
 
             salaryCycleRepository.save(cycle);
             createdCount++;
-
+            
             logger.info("Created salary cycle: {} to {} (Salary: {})",
                 startDate, endDate, currentSalary.getAmount());
         }

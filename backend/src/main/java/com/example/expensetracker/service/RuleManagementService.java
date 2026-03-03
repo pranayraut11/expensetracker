@@ -116,7 +116,7 @@ public class RuleManagementService {
     /**
      * Import rules from DTOs
      */
-    @Transactional
+
     public ImportResultDto importRules(List<RuleExportDto> ruleDtos, boolean skipDuplicates) {
         int successCount = 0;
         int errorCount = 0;

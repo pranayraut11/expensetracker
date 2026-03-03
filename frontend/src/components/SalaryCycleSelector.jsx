@@ -18,6 +18,16 @@ const SalaryCycleSelector = ({
   const [mode, setMode] = useState(selectedMode)
   const [cycleId, setCycleId] = useState(selectedCycleId)
 
+  // Sync internal mode state with prop changes (e.g., when Clear button is clicked)
+  useEffect(() => {
+    setMode(selectedMode)
+  }, [selectedMode])
+
+  // Sync internal cycleId state with prop changes
+  useEffect(() => {
+    setCycleId(selectedCycleId)
+  }, [selectedCycleId])
+
   useEffect(() => {
     if (mode === 'salary') {
       fetchSalaryCycles()

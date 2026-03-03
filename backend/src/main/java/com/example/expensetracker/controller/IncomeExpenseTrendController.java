@@ -12,7 +12,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/analytics")
-@CrossOrigin(origins = "http://localhost:5173")
 public class IncomeExpenseTrendController {
 
     private final IncomeExpenseTrendService trendService;
@@ -52,20 +51,52 @@ public class IncomeExpenseTrendController {
     }
 
     /**
-     * Get category-wise expenses for a specific month
+     * Get category-wise expenses for a specific month or entire year
      * GET /api/analytics/category-expenses?year=2024&month=2
+     * GET /api/analytics/category-expenses?year=2024&month=all
      */
     @GetMapping("/category-expenses")
     public ResponseEntity<?> getCategoryExpenses(
             @RequestParam int year,
-            @RequestParam int month
+            @RequestParam(required = false) String month
     ) {
-        if (month < 1 || month > 12) {
-            return ResponseEntity.badRequest().body("Month must be between 1 and 12");
+        // If month is "all", get expenses for entire year
+        if ("all".equalsIgnoreCase(month)) {
+            List<CategoryExpenseDto> categoryExpenses = categoryExpenseService.getCategoryExpensesForYear(year);
+            return ResponseEntity.ok(categoryExpenses);
         }
 
-        List<CategoryExpenseDto> categoryExpenses = categoryExpenseService.getCategoryExpenses(year, month);
-        return ResponseEntity.ok(categoryExpenses);
+        // Otherwise, parse month as integer
+        try {
+            int monthInt = Integer.parseInt(month);
+            if (monthInt < 1 || monthInt > 12) {
+                return ResponseEntity.badRequest().body("Month must be between 1 and 12");
+            }
+            List<CategoryExpenseDto> categoryExpenses = categoryExpenseService.getCategoryExpenses(year, monthInt);
+            return ResponseEntity.ok(categoryExpenses);
+        } catch (NumberFormatException e) {
+            return ResponseEntity.badRequest().body("Month must be a number between 1-12 or 'all'");
+        }
+    }
+
+    /**
+     * Get category-wise expenses for a date range with optional filters
+     * GET /api/analytics/category-expenses-range?fromDate=2024-01-01&toDate=2024-12-31&search=&category=
+     */
+    @GetMapping("/category-expenses-range")
+    public ResponseEntity<?> getCategoryExpensesByDateRange(
+            @RequestParam(required = false) String fromDate,
+            @RequestParam(required = false) String toDate,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) String category
+    ) {
+        try {
+            List<CategoryExpenseDto> categoryExpenses = categoryExpenseService.getCategoryExpensesByDateRange(
+                fromDate, toDate, search, category
+            );
+            return ResponseEntity.ok(categoryExpenses);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Error fetching category expenses: " + e.getMessage());
+        }
     }
 }
-

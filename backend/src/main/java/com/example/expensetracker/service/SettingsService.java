@@ -137,30 +137,30 @@ public class SettingsService {
     @Transactional
     public Map<String, Long> recalculateSalaryCycles() {
         logger.info("Recalculating all salary cycles");
-
+        
         Map<String, Long> counts = new HashMap<>();
         long createdCount = 0;
         long updatedCount = 0;
-
+        
         try {
             // Clear existing salary cycles
             long existingCount = salaryCycleRepository.count();
             logger.info("Clearing {} existing salary cycles before recalculation", existingCount);
             salaryCycleRepository.deleteAll();
-
+            
             // Recreate salary cycles using SalaryCycleService
             // This will detect all salary transactions and create cycles
             createdCount = salaryCycleService.recalculateAllCycles();
-
+            
             logger.info("Recalculated salary cycles: created {}, updated {}", createdCount, updatedCount);
-
+            
             counts.put("created", createdCount);
             counts.put("updated", updatedCount);
         } catch (Exception e) {
             logger.error("Error recalculating salary cycles", e);
             throw new RuntimeException("Failed to recalculate salary cycles: " + e.getMessage(), e);
         }
-
+        
         return counts;
     }
 }
